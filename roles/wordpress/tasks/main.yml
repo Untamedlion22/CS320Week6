@@ -8,13 +8,12 @@
     login_unix_socket: /var/lib/mysql/mysql.sock
 
 - name: Create Wordpress database user
-  community.mysql.mysql_user:
-    name: "{{ db_user }}"
-    password: "{{ db_password }}"
-    host: localhost
-    priv: "{{ db_name }}.*ALL"
-    state: present
-    login_unix_socket: /var/lib/mysql/mysql.sock
+  ansible.builtin.command: >
+    mysql -e "CREATE USER IF NOT EXISTS '{{ db_user }}'@'localhost' IDENTIFIED BY '{{ db_password }}';
+    ALTER USER '{{ db_user }}'@'localhost' IDENTIFIED BY '{{ db_password }}';
+    GRANT ALL PRIVILEGES ON {{ db_name }}.* TO '{{ db_user }}'@'localhost';
+    FLUSH PRIVILEGES;" 
+  changed_when: false
   no_log: true
 
 - name: Allow Apache to make network and databse connections
@@ -39,7 +38,7 @@
     - name: Create wp-config.php
       ansible.builtin.command: >
         {{ wpcli_path }} config create --path={{wp_path}}
-        --dbname={{ db_name}} --db_user={{ db_user }}
+        --dbname={{ db_name}} --dbuser={{ db_user }}
         --dbpass={{ db_password }} --dbhost={{ db_host }}
       args:
         creates: "{{ wp_path }}/wp-config.php"
@@ -53,15 +52,15 @@
 
     - name: Install WordPress
       ansible.builtin.command: >
-        {{ wpcli_path }} core install --path{{ wp_path }}
+        {{ wpcli_path }} core install --path={{ wp_path }}
         --url={{ site_url}} --title="{{ site_title }}"
         --admin_user={{ wp_admin_user }} --admin_password={{ wp_admin_password }}
-        --admin_email={{ wp_admin_email}} --skip-admin_email
+        --admin_email={{ wp_admin_email}} --skip-email
       when: wp_installed.rc != 0
-      no_log: true
+      no_log: false
 
     - name: Get Installed Plugins
-      ansible.builtin.command: "{{ wpcli_path }} plugin list --field=name --path{{ wp_path }}"
+      ansible.builtin.command: "{{ wpcli_path }} plugin list --field=name --path={{ wp_path }}"
       register: installed_plugins
       changed_when: false
 
