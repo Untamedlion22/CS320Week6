@@ -37,6 +37,16 @@
     creates: /etc/pki/tls/certs/wordpress.crt
   notify: Restart httpd
 
+- name: Point certs
+  ansible.builtin.lineinfile:
+    path: /etc/httpd/conf.d/ssl.conf
+    regexp: "^{{ item.key }}" 
+    line: "{{ item.key }} {{ item.value }}"
+  loop:
+    - { key: SSLCertificateFile, value: /etc/pki/tls/certs/wordpress.crt }
+    - { key: SSLCertificateKeyFile, value: /etc/pki/tls/private/wordpress.key }
+  notify: Restart httpd
+
 - name: Deploy Apache virtual hosts (Http and HTTPS)
   ansible.builtin.template:
     src: wordpress.conf.j2
