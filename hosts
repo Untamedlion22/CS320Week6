@@ -1,0 +1,2 @@
+[wordpress_servers]
+10.2.37.87 ansible_user=nnye

@@ -1,0 +1,9 @@
+---
+
+- name: Deploy Wordpress
+  hosts: wordpress_servers
+  become: true
+  roles:
+    - stack_install
+    - stack_config
+    - wordpress
