@@ -1,0 +1,23 @@
+---
+site_domain: "{{ inventory_hostname }}"
+site_url: "http://{{ site_domain }}"
+site_title: "Ansible WordPress Lab"
+
+wp_admin_user: wpadmin
+wp_admin_email: admin@example.com
+wp_admin_password: "{{ vault_wp_admin_password }}"
+
+db_name: wordpress
+db_user: wp_user
+db_host: localhost
+db_password: "{{ vault_db_password }}"
+
+wp_path: /var/www/html/wordpress
+wpcli_path: /usr/local/bin/wp
+app_user: apache
+app_group: apache
+
+wp_plugins:
+  - classic-editor
+  - contact-form-7
+  - wordfence
