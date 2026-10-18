@@ -1,3 +1,11 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# handlers file for roles/stack_config
+
+- name: Restart php-fpm
+  ansible.builtin.service:
+    name: php-fpm
+    state: restarted
+
+- name: Restart httpd
+  ansible.builtin.service:
+    name: httpd
+    state: restarted

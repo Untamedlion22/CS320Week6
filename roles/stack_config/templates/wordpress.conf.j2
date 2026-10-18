@@ -1,0 +1,21 @@
+# Managed by Ansible
+<VirtualHost *:80>
+    ServerName {{ site_domain }}
+    DocumentRoot {{ wp_path }}
+    <Directory {{ wp_path }}>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName {{ site_domain }}
+    DocumentRoot {{ wp_path }}
+    SSLEngine on
+    SSLCertificateFile /etc/pki/tls/certs/wordpress.crt
+    SSLCertificateKeyFile /etc/pki/tls/private/wordpress.key
+    <Directory {{ wp_path }}>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>

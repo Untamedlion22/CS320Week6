@@ -20,6 +20,7 @@
       - openssl
       - tar
       - unzip
+      - acl
     state: present
 
 - name: Install WP-CLI

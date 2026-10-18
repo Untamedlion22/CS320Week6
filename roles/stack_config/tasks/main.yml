@@ -1,3 +1,65 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# tasks file for roles/stack_config
+
+- name: Ensure application group exists
+  ansible.builtin.group:
+    name: "{{ app_group }}"
+    state: present
+
+- name: Ensure application user exists
+  ansible.builtin.user:
+    name: "{{ app_user }}"
+    group: "{{ app_group }}"
+    shell: /sbin/nologin
+    system: true
+
+- name: Create Wordpress directory
+  ansible.builtin.file:
+    path: "{{ wp_path }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: "0755"
+
+- name: Configure PHP limits
+  ansible.builtin.template:
+    src: wordpress.ini.j2
+    dest: /etc/php.d/99-wordpress.ini
+    mode: "0644"
+  notify: Restart php-fpm
+
+- name: Generate self-signed SSL certificate
+  ansible.builtin.command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048
+    -keyout /etc/pki/tls/private/wordpress.key
+    -out /etc/pki/tls/certs/wordpress.crt
+    -subj "/CN={{ site_domain }}"
+  args:
+    creates: /etc/pki/tls/certs/wordpress.crt
+  notify: Restart httpd
+
+- name: Deploy Apache virtual hosts (Http and HTTPS)
+  ansible.builtin.template:
+    src: wordpress.conf.j2
+    dest: /etc/httpd/conf.d/00-wordpress.conf
+    mode: "0644"
+  notify: Restart httpd
+
+- name: Enable and start services
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - httpd
+    - mariadb
+    - php-fpm
+
+- name: Open HTTP and HTTPS in the firewall
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop:
+    - http
+    - https
