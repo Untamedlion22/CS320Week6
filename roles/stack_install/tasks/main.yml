@@ -1,3 +1,29 @@
 #SPDX-License-Identifier: MIT-0
 ---
-# tasks file for roles/stack_install
+
+- name: Install Apache, MariaDB, PHP and dependencies
+  ansible.builtin.dnf:
+    name:
+      - httpd
+      - mod_ssl
+      - mariadb-server
+      - php
+      - php-cli
+      - php-fpm
+      - php-mysqlnd
+      - php-gd
+      - php-mbstring
+      - php-xml
+      - php-intl
+      - php-pecl-zip
+      - python3-PyMySQL
+      - openssl
+      - tar
+      - unzip
+    state: present
+
+- name: Install WP-CLI
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    dest: "{{ wpcli_path }}"
+    mode: "0755"
