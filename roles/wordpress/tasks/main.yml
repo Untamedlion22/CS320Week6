@@ -1,3 +1,94 @@
-#SPDX-License-Identifier: MIT-0
 ---
-# tasks file for roles/wordpress
+
+- name: Create WordPress database
+  community.mysql.mysql_db:
+    name: "{{ db_name }}"
+    encoding: utf8mb4
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock
+
+- name: Create Wordpress database user
+  community.mysql.mysql_user:
+    name: "{{ db_user }}"
+    password: "{{ db_password }}"
+    host: localhost
+    priv: "{{ db_name }}.*ALL"
+    state: present
+    login_unix_socket: /var/lib/mysql/mysql.sock
+  no_log: true
+
+- name: Allow Apache to make network and databse connections
+  ansible.posix.seboolean:
+    name: "{{ item }}"
+    state: true
+    persistent: true
+  loop:
+    - httpd_can_network_connect
+    - httpd_can_network_connect_db
+
+- name: Install and configure WordPress with WP-CLI
+  become_user: "{{ app_user }}"
+  environment:
+    WP_CLI_CACHE_DIR: /tmp/wp-cli-cache
+  block:
+    - name : Download Wordpress core
+      ansible.builtin.command: "{{ wpcli_path }} core download --path={{ wp_path}}"
+      args:
+        creates: "{{ wp_path }}/wp-settings.php"
+
+    - name: Create wp-config.php
+      ansible.builtin.command: >
+        {{ wpcli_path }} config create --path={{wp_path}}
+        --dbname={{ db_name}} --db_user={{ db_user }}
+        --dbpass={{ db_password }} --dbhost={{ db_host }}
+      args:
+        creates: "{{ wp_path }}/wp-config.php"
+      no_log: true
+
+    - name: Check Wordpress is installed
+      ansible.builtin.command: "{{ wpcli_path }} core is-installed --path={{ wp_path }}"
+      register: wp_installed
+      failed_when: false
+      changed_when: false
+
+    - name: Install WordPress
+      ansible.builtin.command: >
+        {{ wpcli_path }} core install --path{{ wp_path }}
+        --url={{ site_url}} --title="{{ site_title }}"
+        --admin_user={{ wp_admin_user }} --admin_password={{ wp_admin_password }}
+        --admin_email={{ wp_admin_email}} --skip-admin_email
+      when: wp_installed.rc != 0
+      no_log: true
+
+    - name: Get Installed Plugins
+      ansible.builtin.command: "{{ wpcli_path }} plugin list --field=name --path{{ wp_path }}"
+      register: installed_plugins
+      changed_when: false
+
+    - name: Install missing Plugins
+      ansible.builtin.command: "{{ wpcli_path }} plugin install {{ item }} --path={{ wp_path}}" 
+      loop: "{{ wp_plugins }}" 
+      when: item not in installed_plugins.stdout_lines
+
+    - name: Get Active Plugins
+      ansible.builtin.command: "{{ wpcli_path }} plugin list --status=active --field=name --path={{ wp_path }}" 
+      register: active_plugins
+      changed_when: false
+
+    - name: Activate Plugins
+      ansible.builtin.command: "{{ wpcli_path }} plugin activate {{ item }} --path={{ wp_path }}" 
+      loop: "{{ wp_plugins }}" 
+      when: item not in active_plugins.stdout_lines
+
+- name: Verify site responds over HTTP
+  ansible.builtin.uri:
+    url: "http://localhost/"
+    status_code: [200, 301, 302]
+    follow_redirects: none
+
+- name: Verify site responds over HTTPS
+  ansible.builtin.uri:
+    url: "http://localhost/"
+    validate_certs: false
+    status_code: [200, 301, 302]
+    follow_redirects: none
